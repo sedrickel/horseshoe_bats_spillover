@@ -203,27 +203,6 @@ names(predictors)
 names(predictors)[10:12] <- c("NDVI", "dist_wb", "tree_ht")
 writeRaster(predictors, filename = "input/TEA_predictors_all_25102023.tif")
 
-# min max temp layers
-
-maxtemp <- raster("D:/DATA/GIS_Layers/ENVIREM/global_current_30arcsec_geotiff_set2/current_30arcsec_maxTempColdest.tif")
-mintemp <- raster("D:/DATA/GIS_Layers/ENVIREM/global_current_30arcsec_geotiff_set3/current_30arcsec_minTempWarmest.tif")
-
-tempstack <- stack(maxtemp, mintemp)
-
-tempstack <- crop(tempstack, predictors$bio01)
-tempstack <- resample(tempstack, predictors$bio01, method = "bilinear")
-tempstack <- mask(tempstack, predictors$bio01)
-tempstack <- tempstack/10
-
-plot(tempstack)
-names(tempstack) <- c("maxTempColdest", "minTempWarmest")
-
-predictors <- stack(predictors, tempstack)
-
-tempstack_model <- mask(tempstack, predictors_mask)
-predictors_model <- stack(predictors_model, tempstack_model)
-
-writeRaster(predictors, filename = "input/TEA_predictors_lean_30s_masked_08112023.tif")
 writeRaster(predictors_model, filename = "input/TEA_predictors_model_lean_30s_masked_08112023.tif")
 
 # create predictors_model layer for maxent modeling 
@@ -276,8 +255,6 @@ writeRaster(predictors_model, filename = "input/TEA_predictors_model_lean_30s_ma
 
 
 #### READ back all inputs (to clear memory before maxent modeling!) ####
-#names(predictors) <- c("bio01", "bio03", "bio04", "bio07", "bio13", "bio15", "bio19", "aridity", "bedrock_depth", "NDVI",   "dist_wb", "tree_ht")
-#names(predictors_model) <- c("bio01", "bio03", "bio04", "bio07", "bio13", "bio15", "bio19", "aridity", "bedrock_depth", "NDVI",   "dist_wb")
 
 # perform correlation on soils using the same sampling points 
 x3 <- as.data.frame(predictors_model, na.rm = T)
@@ -302,15 +279,11 @@ writeRaster(predictors, filename = "input/TEA_predictors_lean_30s_masked_2510202
 
 
 # FINAL read back in before modeling 
-#predictors <- brick("input/TEA_predictors_lean_30s_masked_25102023.tif")
-#names(predictors) <- c("bio01", "bio07", "bio13", "bio15", "aridity", "bedrock_depth",  "dist_wb", "tree_ht")
-#names(predictors) 
-
 predictors <- brick("input/TEA_predictors_lean_30s_masked_08112023.tif")
 predictors_model <- brick("input/TEA_predictors_model_lean_30s_masked_08112023.tif")
 batspp3 <- read.csv("input/Rhinolophids_SE_Asia_compiled_correct_names_clean.csv") 
 
-names(predictors) <- c("bio01", "bio07", "bio13", "bio15", "aridity", "bedrock_depth",  "dist_wb", "tree_ht", "maxTempColdest", "minTempWarmest")
+names(predictors) <- c("bio01", "bio07", "bio13", "bio15", "aridity", "bedrock_depth",  "dist_wb", "tree_ht")
 names(predictors_model) <- names(predictors)
 
 ### MAXENT MODELING #### 
@@ -485,5 +458,3 @@ write.csv(updated_df, file_path, row.names = FALSE)
 
 
 ######## END OF CODE ##########
-
-
