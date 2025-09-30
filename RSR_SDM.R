@@ -34,52 +34,28 @@ setwd("D:/PROJECTS/OneHealth/Maxent")
 #to be able to run this script you need to have told the Maxent model to produce background predictions. If you are running MaxEnt in R this means putting the argument (after "args") "writebackgroundpredictions=true" as true not false. 
 
 #FUNCTION CODE
-TSS_calculations <- function (sample_clog, prediction_clog, n, th) {
+TSS_calculations <- function(background_preds, presence_preds, threshold) {
+  # Count predictions above/below threshold for background
+  maior_bb <- sum(background_preds > threshold)
+  menor_bb <- sum(background_preds <= threshold)
   
-  xx <- sum(sample_clog > th)
-  yy <- sum(prediction_clog > th)
-  xxx <- sum(sample_clog < th)
-  yyy <- sum(prediction_clog < th)
+  # Count predictions above/below threshold for presence
+  maior_test <- sum(presence_preds > threshold)
+  menor_test <- sum(presence_preds <= threshold)
   
-  ncount <- sum(xx,yy,xxx,yyy)
+  # Calculate sensitivity and specificity
+  sensitivity <- maior_test / (maior_test + menor_test)
+  specificity <- menor_bb / (menor_bb + maior_bb)
   
-  overallaccuracy <- (xx + yyy)/ncount 
-  sensitivity <- xx / (xx + xxx)
-  specificity <- yyy / (yy + yyy)
+  # Calculate TSS
   tss <- sensitivity + specificity - 1
   
-  #kappa calculations
-  a <- xx + xxx
-  b <- xx + yy
-  c <- yy + yyy
-  d <- xxx + yyy
-  e <- a * b
-  f <- c * d
-  g <- e + f
-  h <- g / (ncount * ncount)
-  hup <- overallaccuracy - h
-  hdown <- 1 - h
-  
-  kappa <- hup/hdown
-  Po <- (xx + yyy) / ncount
-  Pe <- ((b/ncount) * (a/ncount)) + ((d/ncount) * (c/ncount))
-  Px1 <- Po - Pe
-  Px2 <- 1 - Pe
-  Px3 <- Px1/Px2
-  
-  tx1 <- xx + yyy
-  tx2 <- 2 * a * c
-  tx3 <- a - c
-  tx4 <- xx - yyy
-  tx5 <- ncount * (( 2 * a ) - tx4)
-  tx6 <- ncount * tx1
-  
-  kappamax <- (tx6 - tx2 - (tx3 * tx4)) / ((tx5 - tx3) - (tx3 * tx4))
-  
-  return(tss) #returns the TSS value alone to an object file
-  
-  #cat(" Maxent results for model with\n",a,"training sample predictions\n",c ,"background predictions\n\n TSS value:        ", tss,"\n Overall accuracy: ",overallaccuracy,"\n Sensitivity:      ",sensitivity,"\n Specificity:      ",specificity,"\n Kappa:            ",kappa,"\n Kappa max:        ",kappamax)
-  
+  # Return as a list
+  return(list(
+    TSS = tss,
+    Sensitivity = sensitivity,
+    Specificity = specificity
+  ))
 }
 
 #### READ IN AND PROCESS INPUT FILES ####
@@ -436,14 +412,16 @@ maxres <- as.data.frame(t(mod.seq@results))
 th <- maxres$X10.percentile.training.presence.Cloglog.threshold
 
 #run the function, the input values are the sampleclog values, then the background clog values, the sample number for the pseudo absences and then threshold value
-ts <- TSS_calculations(sampleclog,backgroundclog,n,th)
+ts <- TSS_calculations(backgroundclog, sampleclog, th)
 ts
 maxres$Training.AUC
 
 
-# accuracy results
-df <- data.frame(sp.name, opt.aicc[,1:2], maxres$Training.AUC, ts) #optimal aicc
+#omission rates
+OR <- opt.aicc[,12:15]
 
+# accuracy results
+df <- data.frame(sp.name, opt.aicc[,1:2], maxres$Training.AUC, ts, OR) #optimal aicc
 
 
 # save to disk
@@ -458,3 +436,5 @@ write.csv(updated_df, file_path, row.names = FALSE)
 
 
 ######## END OF CODE ##########
+
+
